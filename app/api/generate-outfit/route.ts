@@ -1,5 +1,6 @@
 import { Client } from '@gradio/client'
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic' // Disable static optimization
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -17,30 +18,6 @@ interface PredictionResult {
   data?: Array<Array<{ image: { url: string } }>>
 }
 
-async function handleQuotaError(
-  error: Error,
-  attempt: number,
-  maxRetries: number,
-): Promise<number> {
-  const quotaMatch = error.message.match(/retry in (\d+):(\d+):(\d+)/)
-  if (!quotaMatch) throw error
-
-  const [_, hours, minutes, seconds] = quotaMatch
-  const waitTimeMs =
-    (Number(hours) * 60 * 60 + Number(minutes) * 60 + Number(seconds)) * 1000
-
-  if (attempt === maxRetries - 1) {
-    throw new Error(
-      `GPU quota exceeded. Please try again in ${hours}h ${minutes}m ${seconds}s`,
-    )
-  }
-
-  console.log(
-    `GPU quota exceeded, waiting for ${hours}h ${minutes}m ${seconds}s...`,
-  )
-  return waitTimeMs + 1000 // Add 1 second buffer
-}
-
 async function predictWithRetry(
   client: Client,
   endpoint: string,
@@ -50,6 +27,8 @@ async function predictWithRetry(
   for (let i = 0; i < maxRetries; i++) {
     try {
       console.log(`Attempt ${i + 1}: Sending request to ${endpoint}`)
+
+      // Make the prediction with the prepared files
       console.log('Making prediction with params:', {
         ...params,
         vton_img: params.vton_img ? 'File data...' : null,
@@ -60,45 +39,45 @@ async function predictWithRetry(
         endpoint,
         params as unknown as Record<string, unknown>,
       )) as PredictionResult
+
       return result
     } catch (error) {
       console.error(`Attempt ${i + 1} failed:`, error)
 
-      if (error instanceof Error) {
-        try {
-          const waitTime = await handleQuotaError(error, i, maxRetries)
-          await delay(waitTime)
-          continue
-        } catch (quotaError) {
-          if (i === maxRetries - 1) throw quotaError
+      // Parse quota error message
+      const quotaMatch = error?.message?.match(/retry in (\d+):(\d+):(\d+)/)
+      if (quotaMatch) {
+        const [_, hours, minutes, seconds] = quotaMatch
+        const waitTimeMs =
+          (Number(hours) * 60 * 60 + Number(minutes) * 60 + Number(seconds)) *
+          1000
+
+        if (i === maxRetries - 1) {
+          throw new Error(
+            `GPU quota exceeded. Please try again in ${hours}h ${minutes}m ${seconds}s`,
+          )
         }
+
+        console.log(
+          `GPU quota exceeded, waiting for ${hours}h ${minutes}m ${seconds}s...`,
+        )
+        await delay(waitTimeMs + 1000) // Add 1 second buffer
+        continue
       }
 
+      // If we're on the last retry, throw the error
       if (i === maxRetries - 1) {
         throw new Error(
-          `Failed after ${maxRetries} attempts: ${
-            error instanceof Error ? error.message : JSON.stringify(error)
-          }`,
+          `Failed after ${maxRetries} attempts: ${error.message || JSON.stringify(error)}`,
         )
       }
 
+      // Otherwise wait and retry
       const waitTime = 5000 * (i + 1) // Exponential backoff
       console.log(`Retrying in ${waitTime / 1000} seconds...`)
       await delay(waitTime)
     }
   }
-}
-
-async function validateInput(
-  modelImage: File,
-  garmentImage: File,
-  category?: string,
-) {
-  if (!modelImage || !garmentImage) {
-    throw new Error('Model image and garment image are required')
-  }
-
-  return { modelImage, garmentImage, category }
 }
 
 async function createGradioClient(): Promise<Client> {
@@ -110,46 +89,62 @@ async function createGradioClient(): Promise<Client> {
   return client
 }
 
-function extractImageData(result: PredictionResult): string {
-  if (!result?.data?.[0]?.[0]?.image?.url) {
-    throw new Error('No image data received from the model')
+function extractImageData(result: PredictionResult) {
+  if (
+    result?.data &&
+    Array.isArray(result.data) &&
+    result.data[0]?.[0]?.image?.url
+  ) {
+    return result.data[0][0].image.url
   }
-  return result.data[0][0].image.url
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const formData = await request.formData()
+    const formData = await req.formData()
+
     const modelImage = formData.get('modelImage') as File
     const garmentImage = formData.get('garmentImage') as File
-    const category = formData.get('category') as string | null
-    const nSamples = Number(formData.get('nSamples'))
-    const nSteps = Number(formData.get('nSteps'))
-    const imageScale = Number(formData.get('imageScale'))
-    const seed = Number(formData.get('seed'))
+    const category = formData.get('category') as string
+    const nSamples = formData.get('nSamples') as string
+    const nSteps = formData.get('nSteps') as string
+    const imageScale = formData.get('imageScale') as string
+    const seed = formData.get('seed') as string
 
-    await validateInput(modelImage, garmentImage, category || undefined)
+    if (!modelImage || !garmentImage) {
+      return NextResponse.json(
+        { error: 'Model image and garment image are required' },
+        { status: 400 },
+      )
+    }
+
     const client = await createGradioClient()
-
     const endpoint = category ? '/process_dc' : '/process_hd'
-    const params: PredictionParams = {
+    const params = {
       vton_img: modelImage,
       garm_img: garmentImage,
       ...(category && { category }),
-      n_samples: nSamples,
-      n_steps: nSteps,
-      image_scale: imageScale,
-      seed: seed,
+      n_samples: Number(nSamples),
+      n_steps: Number(nSteps),
+      image_scale: Number(imageScale),
+      seed: Number(seed),
     }
 
     console.log('Sending prediction request...')
     const result = await predictWithRetry(client, endpoint, params)
 
     console.log('Raw result:', result)
-    const imageData = extractImageData(result!)
-    console.log('Image data:', imageData)
+    console.log('Result type:', typeof result)
 
-    return NextResponse.json({ result: imageData })
+    let imageData = null
+    imageData = extractImageData(result!)
+
+    if (!imageData) {
+      throw new Error('No image data received from the model')
+    }
+
+    console.log('Image data:', imageData)
+    return NextResponse.json({ result: imageData, success: true })
   } catch (error) {
     console.error('Detailed error information:', {
       name: error instanceof Error ? error.name : 'Unknown Error',
@@ -167,6 +162,8 @@ export async function POST(request: NextRequest) {
           error instanceof Error
             ? error.message
             : 'Failed to process model response',
+        details: process.env.NODE_ENV === 'development' ? error : undefined,
+        success: false,
       },
       { status: 500 },
     )

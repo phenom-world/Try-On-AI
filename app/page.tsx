@@ -31,10 +31,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useTrialLimit } from '@/hooks/useTrialLimit'
+import { handleDownload, loadSampleImages } from '@/lib/utils'
 
 import Footer from '../components/Footer'
 import Navbar from '../components/Navbar'
-import { generateOutfit } from './actions/generate-outfit'
 
 export default function Home() {
   const [modelImage, setModelImage] = useState<File | null>(null)
@@ -102,36 +102,53 @@ export default function Home() {
     setLoading(true)
     setResult(null)
 
-    try {
-      const response = await generateOutfit(
-        modelImage!,
-        garmentImage!,
-        category !== 'none' ? category : null,
-        nSamples,
-        nSteps,
-        imageScale,
-        seed,
-      )
+    const formData = new FormData()
+    if (modelImage) formData.append('modelImage', modelImage)
+    if (garmentImage) formData.append('garmentImage', garmentImage)
+    if (category !== 'none') formData.append('category', category)
+    formData.append('nSamples', nSamples.toString())
+    formData.append('nSteps', nSteps.toString())
+    formData.append('imageScale', imageScale.toString())
+    formData.append('seed', seed.toString())
 
-      if (!response.result) {
-        toast.error('No result received from the server')
+    try {
+      const response = await fetch('/api/generate-outfit', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (response.status === 429) {
+        toast.error(data.error)
         return
       }
 
-      const imageData = response.result
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            `Failed to generate outfit: ${response.status} ${response.statusText}`,
+        )
+      }
+
+      if (!data.success || !data.result) {
+        throw new Error('No result received from the server')
+      }
+
+      const imageData = data.result
       if (
         typeof imageData !== 'string' ||
         (!imageData.startsWith('data:image') && !imageData.startsWith('http'))
       ) {
-        toast.error('Invalid image data received')
-        return
+        throw new Error('Invalid image data received')
       }
 
       setResult(imageData)
       updateTrialData()
     } catch (err) {
+      console.error('Error in handleSubmit:', err)
       if (err instanceof Error) {
-        toast.error(err.message)
+        toast.error(`Error: ${err.message}`)
       } else {
         toast.error('An unexpected error occurred while generating the outfit')
       }
@@ -140,58 +157,8 @@ export default function Home() {
     }
   }
 
-  const handleDownload = async () => {
-    if (!result) return
-
-    try {
-      const response = await fetch(result)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `generated-outfit-${Date.now()}.webp`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Error downloading image:', err)
-      toast.error('Failed to download the image')
-    }
-  }
-
   if (!isClient) {
     return null
-  }
-
-  const loadSampleImages = async () => {
-    const modelNum = Math.floor(Math.random() * 3) + 1
-    let garmentNum = Math.floor(Math.random() * 4) + 1
-
-    if (modelNum === 3) {
-      garmentNum = Math.random() < 0.5 ? 3 : 4
-    }
-
-    try {
-      const [modelBlob, garmentBlob] = await Promise.all([
-        fetch(`/samples/model${modelNum}.jpg`).then((res) => res.blob()),
-        fetch(`/samples/garment${garmentNum}.jpg`).then((res) => res.blob()),
-      ])
-
-      const modelFile = new File([modelBlob], `model${modelNum}.jpg`, {
-        type: 'image/jpeg',
-      })
-      const garmentFile = new File([garmentBlob], `garment${garmentNum}.jpg`, {
-        type: 'image/jpeg',
-      })
-
-      handleImageChange(modelFile, 'model')
-      handleImageChange(garmentFile, 'garment')
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to load sample images',
-      )
-    }
   }
 
   return (
@@ -241,7 +208,7 @@ export default function Home() {
               <CardDescription className="text-gray-600 dark:text-gray-400">
                 Choose your photo and the garment you want to try on or{' '}
                 <button
-                  onClick={loadSampleImages}
+                  onClick={() => loadSampleImages(handleImageChange)}
                   className="text-blue-600 dark:text-blue-400 hover:underline focus:outline-none"
                 >
                   load sample images
@@ -534,7 +501,7 @@ export default function Home() {
                     />
                   </div>
                   <Button
-                    onClick={handleDownload}
+                    onClick={() => handleDownload(result)}
                     className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <Download className="mr-2 h-4 w-4" />
