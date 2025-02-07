@@ -166,10 +166,10 @@ export default function Home() {
 
   const loadSampleImages = async () => {
     const modelNum = Math.floor(Math.random() * 3) + 1
-    let garmentNum = Math.floor(Math.random() * 5) + 1
+    let garmentNum = Math.floor(Math.random() * 4) + 1
 
     if (modelNum === 3) {
-      garmentNum = Math.random() < 0.5 ? 4 : 5
+      garmentNum = Math.random() < 0.5 ? 3 : 4
     }
 
     try {
@@ -344,7 +344,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 mt-4">
                 <div className="space-y-3">
                   <Label
                     htmlFor="category"

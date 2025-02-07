@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Virtual Try-On AI
+
+An AI-powered virtual try-on application that allows users to visualize how clothing items would look on them. Built with Next.js 15, TypeScript, and powered by the OOTDiffusion AI model.
+
+![Virtual Try-On AI Demo](public/demo.png)
+
+## Features
+
+- 🎯 Virtual try-on for various clothing categories
+- 🖼️ Support for both HD and category-specific processing
+- 🎨 Customizable generation parameters
+- 📱 Responsive design for all devices
+- 🌓 Dark/Light mode support
+- ⚡ Real-time preview
+- 🔄 Sample images for testing
+- 💾 Easy result downloading
+
+## Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui
+- **AI Model**: OOTDiffusion via Hugging Face
+- **State Management**: React Hooks
+- **API Integration**: Gradio Client
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18+
+- npm or yarn
+- A Hugging Face account and API token
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository:
+   bash
+   git clone https://github.com/yourusername/virtual-tryon-ai.git
+   cd virtual-tryon-ai
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Install dependencies:
+   bash
+   npm install
+   or
+   yarn install
 
-## Learn More
+3. Create a `.env` file in the root directory:
+   env
+   HUGGING_FACE_TOKEN=your_token_here
+   bash
+   npm run dev
+   or
+   yarn dev
 
-To learn more about Next.js, take a look at the following resources:
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Usage
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Upload Images**:
 
-## Deploy on Vercel
+   - Upload your photo (the model image)
+   - Upload the garment you want to try on
+   - Or use the "load sample images" feature
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Configure Settings**:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   - Select garment category (Upper-body, Lower-body, Dress)
+   - Adjust generation parameters:
+     - Number of samples (1-4)
+     - Processing steps (recommended: 10-15)
+     - Guidance scale (recommended: 1-2)
+     - Random seed for reproducible results
+
+3. **Generate & Download**:
+   - Click "Generate outfit" to process
+   - Download the result using the download button
+
+## Important Notes
+
+### GPU Quota Limitations
+
+This demo uses Hugging Face's free GPU quota which is limited:
+
+- Use lower values for Steps (10-15) and Scale (1-2)
+- Wait between attempts if you get a quota error
+- For better availability, consider:
+  - Using your own Hugging Face Pro account
+  - Running the model locally
+
+### Performance Tips
+
+- Higher step counts (>20) and scale values (>2) may:
+  - Take longer to process
+  - Consume more GPU quota
+  - Not necessarily yield better results
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [OOTDiffusion](https://huggingface.co/levihsu/OOTDiffusion) for the AI model
+- [shadcn/ui](https://ui.shadcn.com/) for the UI components
+- [Vercel](https://vercel.com) for hosting
+- [Next.js](https://nextjs.org) team for the amazing framework
