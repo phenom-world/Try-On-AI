@@ -9,11 +9,11 @@ export function cn(...inputs: ClassValue[]) {
 export const loadSampleImages = async (
   callback: (file: File, type: 'model' | 'garment') => void,
 ) => {
-  const modelNum = Math.floor(Math.random() * 3) + 1
-  let garmentNum = Math.floor(Math.random() * 4) + 1
+  const modelNum = Math.floor(Math.random() * 5) + 1
+  let garmentNum = Math.floor(Math.random() * 9) + 1
 
-  if (modelNum === 3) {
-    garmentNum = Math.random() < 0.5 ? 3 : 4
+  if (modelNum === 5) {
+    garmentNum = Math.floor(Math.random() * 4) + 6
   }
 
   try {

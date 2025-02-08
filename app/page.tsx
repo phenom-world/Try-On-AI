@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
 import {
   Select,
   SelectContent,
@@ -481,11 +480,23 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               {loading && (
-                <div className="space-y-4 p-8">
-                  <Progress value={45} className="w-full" />
-                  <p className="text-center text-sm text-blue-600 dark:text-blue-400">
-                    Generating your virtual try-on...
-                  </p>
+                <div className="space-y-6 p-8">
+                  <div className="flex items-center justify-center">
+                    <div className="relative h-32 w-32">
+                      <div className="absolute inset-0 animate-spin rounded-full border-b-2 border-blue-600 dark:border-blue-400"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Wand2 className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-center text-sm font-medium text-blue-600 dark:text-blue-400">
+                      Generating your virtual try-on...
+                    </p>
+                    <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+                      This may take up to a minute
+                    </p>
+                  </div>
                 </div>
               )}
 
