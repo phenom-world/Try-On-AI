@@ -1,5 +1,7 @@
 import { Client } from '@gradio/client'
 import { NextRequest, NextResponse } from 'next/server'
+
+export const maxDuration = 60 // Changed from 30 to 60 seconds to comply with Vercel hobby plan limits
 export const dynamic = 'force-dynamic' // Disable static optimization
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
